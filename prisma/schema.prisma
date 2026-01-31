@@ -1,0 +1,1140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                      Int                      @id @default(autoincrement())
+  companyName             String                   @map("raison_sociale")
+  rccm                    String
+  nationalId              String                   @map("id_nat")
+  taxId                   String                   @map("nif")
+  headquartersAddress     String                   @map("adresse_siege")
+  phone                   String                   @map("telephone")
+  email                   String
+  taxRegime               String                   @map("regime_fiscal")
+  taxCenter               String                   @map("centre_fiscal")
+  logo                    Bytes?
+  mcfConfig               Json?                    @map("config_mcf")
+  isActive                Boolean                  @default(false) @map("est_actif")
+  currency                String                   @default("USD") @map("devise_par_defaut")
+  timezone                String                   @default("Africa/Kinshasa") @map("fuseau_horaire")
+  dateFormat              String                   @default("DD/MM/YYYY") @map("format_date")
+  fiscalYearStart         String                   @default("01-01") @map("debut_exercice_fiscal")
+  primaryColor            String                   @default("#8b5cf6") @map("couleur_primaire")
+  secondaryColor          String                   @default("#06b6d4") @map("couleur_secondaire")
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  accounts                Account[]
+  entries                 AccountingEntry[]
+  attendances             Attendance[]
+  auditLogs               AuditLog[]
+  balanceSheets           BalanceSheet[]
+  branches                Branch[]
+  budgets                 Budget[]
+  budgetLines             BudgetLine[]
+  cashFlowStatements      CashFlowStatement[]
+  costCenters             CostCenter[]
+  creditNotes             CreditNote[]
+  defTransmissions        DefTransmission[]
+  departments             Department[]
+  electronicFiscalDevices ElectronicFiscalDevice[]
+  employees               Employee[]
+  entryLines              EntryLine[]
+  fiscalYears             FiscalYear[]
+  incomeStatements        IncomeStatement[]
+  invoices                Invoice[]
+  invoiceLines            InvoiceLine[]
+  journals                Journal[]
+  leaves                  Leave[]
+  payments                Payment[]
+  payrollPeriods          PayrollPeriod[]
+  payslips                Payslip[]
+  payslipLines            PayslipLine[]
+  products                Product[]
+  purchaseOrders          PurchaseOrder[]
+  roles                   Role[]
+  stockMovements          StockMovement[]
+  stockReceptions         StockReception[]
+  taxes                   Tax[]
+  thirdParties            ThirdParty[]
+  trainings               Training[]
+  trainingDomains         TrainingDomain[]
+  trainingParticipations  TrainingParticipation[]
+  users                   User[]
+}
+
+model Branch {
+  id                      Int                      @id @default(autoincrement())
+  name                    String                   @map("nom_succursale")
+  code                    String?                  @map("code_succursale")
+  address                 String?                  @map("adresse")
+  phone                   String?                  @map("telephone")
+  email                   String?                  @map("email")
+  city                    String?                  @map("ville")
+  companyId               Int
+  isMain                  Boolean                  @default(false) @map("est_principale")
+  isActive                Boolean                  @default(false) @map("est_actif")
+  currency                String                   @default("USD") @map("devise_par_defaut")
+  timezone                String                   @default("Africa/Kinshasa") @map("fuseau_horaire")
+  dateFormat              String                   @default("DD/MM/YYYY") @map("format_date")
+  fiscalYearStart         String                   @default("01-01") @map("debut_exercice_fiscal")
+  primaryColor            String                   @default("#8b5cf6") @map("couleur_primaire")
+  secondaryColor          String                   @default("#06b6d4") @map("couleur_secondaire")
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  accountingEntries       AccountingEntry[]
+  attendances             Attendance[]
+  auditLogs               AuditLog[]
+  company                 Company                  @relation(fields: [companyId], references: [id])
+  budgets                 Budget[]
+  budgetLines             BudgetLine[]
+  departments             Department[]
+  electronicFiscalDevices ElectronicFiscalDevice[]
+  employees               Employee[]
+  invoices                Invoice[]
+  journals                Journal[]
+  leaves                  Leave[]
+  payments                Payment[]
+  payrollPeriods          PayrollPeriod[]
+  payslips                Payslip[]
+  products                Product[]
+  purchaseOrders          PurchaseOrder[]
+  stockMovements          StockMovement[]
+  stockReceptions         StockReception[]
+  thirdParties            ThirdParty[]
+  trainings               Training[]
+  trainingDomains         TrainingDomain[]
+  trainingParticipations  TrainingParticipation[]
+  taxes                   Tax[]
+  roles                   Role[]
+  users                   User[]
+
+  @@unique([code, companyId])
+  @@index([companyId])
+}
+
+model User {
+  id                     Int       @id @default(autoincrement())
+  lastName               String    @map("nom")
+  firstName              String    @map("prenom")
+  username               String    @map("login")
+  email                  String    @unique
+  passwordHash           String    @map("mot_de_passe_hash")
+  isActive               Boolean   @default(true) @map("est_actif")
+  isSaaSAdmin            Boolean   @default(false) @map("est_saas_admin")
+  lastLogin              DateTime? @map("dernier_login")
+  twoFactorSecret        String?   @map("two_factor_secret")
+  isTwoFactorEnabled     Boolean   @default(false) @map("est_2fa_active")
+  twoFactorRecoveryCodes Json      @default("[]") @map("codes_recuperation_2fa")
+  failedLoginAttempts    Int       @default(0) @map("failed_login_attempts")
+  lockedUntil            DateTime? @map("locked_until")
+  deletedAt              DateTime? @map("deleted_at")
+
+  companyId       Int
+  branchId        Int?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  createdEntries  AccountingEntry[] @relation("EntryCreator")
+  auditLogs       AuditLog[]
+  createdInvoices Invoice[]         @relation("InvoiceCreator")
+  branch          Branch?           @relation(fields: [branchId], references: [id])
+  company         Company           @relation(fields: [companyId], references: [id])
+  roles           Role[]
+
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model Role {
+  id    Int     @id @default(autoincrement())
+  code  String
+  label String?
+  users User[]
+
+  companyId Int
+  branchId  Int?
+
+  branch      Branch?  @relation(fields: [branchId], references: [id])
+  company     Company  @relation(fields: [companyId], references: [id])
+  permissions String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([code, companyId])
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  entityType String   @map("entity_type")
+  entityId   BigInt   @map("entity_id")
+  action     String
+  changes    Json?
+  timestamp  DateTime @default(now()) @map("horodatage")
+  ipAddress  String?  @map("ip_adresse")
+  userAgent  String?  @map("user_agent")
+  userId     Int?
+  companyId  Int
+  branchId   Int?
+  branch     Branch?  @relation(fields: [branchId], references: [id])
+  company    Company  @relation(fields: [companyId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([companyId])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([branchId])
+}
+
+model Invoice {
+  id                  BigInt            @id @default(autoincrement())
+  invoiceNumber       String            @map("numero_facture")
+  internalReference   String?           @map("reference_interne")
+  issuedAt            DateTime          @map("date_emission")
+  issuedTime          String            @map("heure_emission")
+  type                InvoiceType       @map("type_facture")
+  currency            String            @map("devise")
+  exchangeRate        Decimal           @map("taux_change") @db.Decimal(10, 4)
+  totalAmountExclTax  Decimal           @map("montant_ht") @db.Decimal(15, 2)
+  totalVAT            Decimal           @map("montant_tva") @db.Decimal(15, 2)
+  totalAmountInclTax  Decimal           @map("montant_ttc") @db.Decimal(15, 2)
+  status              InvoiceStatus     @default(DRAFT)
+  deviceId            String?           @map("id_dispositif")
+  deviceNid           String?           @map("def_nid")
+  fiscalSecurityId    String?           @unique @map("isf")
+  invoiceCounter      BigInt?           @map("compteur_facture")
+  dailyCounter        Int?              @map("compteur_jour")
+  mcfSignature        String?           @map("mcf_signature")
+  mcfSignatureDate    String?           @map("mcf_date_signature")
+  mcfSignatureCounter String?           @map("mcf_compteur_signature")
+  cnfCode             String?           @map("cnf_code")
+  qrCodeData          String?           @map("code_qr_data")
+  sellerLegalName     String            @default("") @map("nom_vendeur")
+  sellerAddress       String            @default("") @map("adresse_vendeur")
+  sellerNif           String            @default("") @map("nif_vendeur")
+  sellerRccm          String?           @map("rccm_vendeur")
+  sellerPhone         String            @default("") @map("telephone_vendeur")
+  observation         String?
+  deletedAt           DateTime?         @map("deleted_at")
+  clientId            Int
+  createdById         Int
+  companyId           Int
+  branchId            Int?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  accountingEntry     AccountingEntry?
+  creditNote          CreditNote?
+  defTransmissions    DefTransmission[]
+  branch              Branch?           @relation(fields: [branchId], references: [id])
+  client              ThirdParty        @relation(fields: [clientId], references: [id])
+  company             Company           @relation(fields: [companyId], references: [id])
+  createdBy           User              @relation("InvoiceCreator", fields: [createdById], references: [id])
+  invoiceLines        InvoiceLine[]
+  payments            Payment[]
+
+  @@unique([invoiceNumber, companyId])
+  @@index([issuedAt, companyId])
+  @@index([status, companyId])
+  @@index([clientId, companyId])
+  @@index([branchId])
+  @@index([companyId])
+  @@index([createdById])
+}
+
+model InvoiceLine {
+  id                 BigInt  @id @default(autoincrement())
+  quantity           Decimal @map("quantite") @db.Decimal(15, 3)
+  unitPrice          Decimal @map("prix_unitaire") @db.Decimal(15, 2)
+  discountRate       Float   @default(0) @map("taux_remise")
+  discountAmount     Decimal @default(0.00) @map("montant_remise") @db.Decimal(15, 2)
+  netAmountExclTax   Decimal @map("montant_ht_net") @db.Decimal(15, 2)
+  vatAmount          Decimal @map("montant_tva") @db.Decimal(15, 2)
+  totalAmountInclTax Decimal @map("montant_ttc") @db.Decimal(15, 2)
+  description        String  @map("description_produit")
+  invoiceId          BigInt
+  productId          Int
+  taxId              Int
+  companyId          Int
+  company            Company @relation(fields: [companyId], references: [id])
+  invoice            Invoice @relation(fields: [invoiceId], references: [id])
+  product            Product @relation(fields: [productId], references: [id])
+  tax                Tax     @relation(fields: [taxId], references: [id])
+
+  @@index([companyId])
+  @@index([invoiceId])
+  @@index([productId])
+  @@index([taxId])
+}
+
+model Tax {
+  id           Int           @id @default(autoincrement())
+  code         String
+  rate         Float         @map("taux")
+  label        String        @map("libelle")
+  isDeductible Boolean       @default(false) @map("est_deductible")
+  companyId    Int
+  invoiceLines InvoiceLine[]
+  company      Company       @relation(fields: [companyId], references: [id])
+
+  branchId Int
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([code, companyId])
+  @@unique([code, branchId])
+  @@index([companyId])
+  @@index([branchId])
+}
+
+model Payment {
+  id                BigInt           @id @default(autoincrement())
+  paidAt            DateTime         @map("date_paiement")
+  amountPaid        Decimal          @map("montant_paye") @db.Decimal(15, 2)
+  method            PaymentMethod    @map("mode")
+  externalReference String?          @map("reference_paiement_externe")
+  observation       String?
+  invoiceId         BigInt
+  companyId         Int
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  branchId          Int?
+  accountingEntry   AccountingEntry?
+  branch            Branch?          @relation(fields: [branchId], references: [id])
+  company           Company          @relation(fields: [companyId], references: [id])
+  invoice           Invoice          @relation(fields: [invoiceId], references: [id])
+
+  @@index([branchId])
+  @@index([companyId])
+  @@index([invoiceId])
+}
+
+model CreditNote {
+  id                       BigInt   @id @default(autoincrement())
+  creditNoteNumber         String   @map("numero_note")
+  issuedAt                 DateTime @default(now()) @map("date_emission")
+  cancellationReason       String   @map("motif_annulation")
+  mcfCancellationSignature String?  @map("signature_mcf_annulation")
+  invoiceId                BigInt   @unique
+  companyId                Int
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  company                  Company  @relation(fields: [companyId], references: [id])
+  invoice                  Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@unique([creditNoteNumber, companyId])
+  @@index([companyId])
+}
+
+model Account {
+  id              Int          @id @default(autoincrement())
+  accountNumber   String       @map("numero_compte")
+  label           String       @map("intitule")
+  accountClass    Int          @map("classe_compte")
+  parentAccountId Int?         @map("compte_parent_id")
+  level           Int          @map("niveau")
+  isBalanceSheet  Boolean      @default(false) @map("est_bilan")
+  isProfitLoss    Boolean      @default(false) @map("est_compte_resultat")
+  isHAO           Boolean      @default(false) @map("est_hao")
+  isAnalytical    Boolean      @default(false) @map("est_analytique")
+  type            AccountType
+  isReconcilable  Boolean      @default(false) @map("est_lettrable")
+  isAuxiliary     Boolean      @default(false) @map("est_auxiliaire")
+  normalBalance   String       @default("DEBIT") @map("sens_normal")
+  isActive        Boolean      @default(true) @map("est_actif")
+  companyId       Int
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  company         Company      @relation(fields: [companyId], references: [id])
+  parentAccount   Account?     @relation("AccountHierarchy", fields: [parentAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subAccounts     Account[]    @relation("AccountHierarchy")
+  budgetLines     BudgetLine[]
+  entryLines      EntryLine[]
+
+  @@unique([accountNumber, companyId])
+  @@index([accountClass, companyId])
+  @@index([parentAccountId])
+  @@index([level, companyId])
+  @@index([companyId])
+}
+
+model Journal {
+  id        Int               @id @default(autoincrement())
+  code      String
+  label     String
+  type      JournalType       @map("type_journal")
+  companyId Int
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  branchId  Int?
+  entries   AccountingEntry[]
+  branch    Branch?           @relation(fields: [branchId], references: [id])
+  company   Company           @relation(fields: [companyId], references: [id])
+
+  @@unique([code, companyId])
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model AccountingEntry {
+  id              BigInt      @id @default(autoincrement())
+  referenceNumber String      @map("numero_piece")
+  entryDate       DateTime    @map("date_ecriture")
+  description     String      @map("libelle_ecriture")
+  status          EntryStatus @default(PROVISIONAL) @map("etat")
+  deletedAt       DateTime?   @map("deleted_at")
+  currency        String      @default("FC") @map("devise")
+  exchangeRate    Decimal     @default(1.0000) @map("taux_change") @db.Decimal(10, 4)
+  journalId       Int
+  fiscalYearId    Int
+  invoiceId       BigInt?     @unique
+  paymentId       BigInt?     @unique
+  createdById     Int
+  companyId       Int
+  createdAt       DateTime    @default(now()) @map("date_creation")
+  updatedAt       DateTime    @updatedAt
+  payslipId       String?     @unique
+  branchId        Int?
+  branch          Branch?     @relation(fields: [branchId], references: [id])
+  company         Company     @relation(fields: [companyId], references: [id])
+  createdBy       User        @relation("EntryCreator", fields: [createdById], references: [id])
+  fiscalYear      FiscalYear  @relation(fields: [fiscalYearId], references: [id])
+  invoice         Invoice?    @relation(fields: [invoiceId], references: [id])
+  journal         Journal     @relation(fields: [journalId], references: [id])
+  payment         Payment?    @relation(fields: [paymentId], references: [id])
+  payslip         Payslip?    @relation(fields: [payslipId], references: [id])
+  entryLines      EntryLine[]
+
+  @@index([referenceNumber, companyId])
+  @@index([entryDate, companyId])
+  @@index([status, companyId])
+  @@index([branchId])
+  @@index([companyId])
+  @@index([createdById])
+  @@index([fiscalYearId])
+  @@index([journalId])
+}
+
+model EntryLine {
+  id           BigInt          @id @default(autoincrement())
+  debit        Decimal         @default(0.00) @db.Decimal(15, 2)
+  credit       Decimal         @default(0.00) @db.Decimal(15, 2)
+  debitLocal   Decimal         @default(0.00) @map("debit_local") @db.Decimal(15, 2)
+  creditLocal  Decimal         @default(0.00) @map("credit_local") @db.Decimal(15, 2)
+  description  String          @map("libelle_ligne")
+  matchingCode String?         @map("lettre_lettrage")
+  matchingDate DateTime?       @map("date_lettrage")
+  entryId      BigInt
+  accountId    Int
+  thirdPartyId Int?
+  costCenterId Int?
+  companyId    Int
+  account      Account         @relation(fields: [accountId], references: [id])
+  company      Company         @relation(fields: [companyId], references: [id])
+  costCenter   CostCenter?     @relation(fields: [costCenterId], references: [id])
+  entry        AccountingEntry @relation(fields: [entryId], references: [id])
+  thirdParty   ThirdParty?     @relation(fields: [thirdPartyId], references: [id])
+
+  @@index([accountId])
+  @@index([companyId])
+  @@index([costCenterId])
+  @@index([entryId])
+  @@index([thirdPartyId])
+}
+
+model FiscalYear {
+  id                 Int                 @id @default(autoincrement())
+  code               String
+  startDate          DateTime            @map("date_debut")
+  endDate            DateTime            @map("date_fin")
+  isClosed           Boolean             @default(false) @map("est_cloture")
+  companyId          Int
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  entries            AccountingEntry[]
+  balanceSheets      BalanceSheet[]
+  budgets            Budget[]
+  cashFlowStatements CashFlowStatement[]
+  company            Company             @relation(fields: [companyId], references: [id])
+  incomeStatements   IncomeStatement[]
+
+  @@unique([code, companyId])
+  @@index([companyId])
+}
+
+model CostCenter {
+  id                 Int          @id @default(autoincrement())
+  code               String
+  name               String       @map("designation")
+  parentCostCenterId Int?         @map("centre_parent_id")
+  type               String       @default("PRINCIPAL") @map("type")
+  isActive           Boolean      @default(true) @map("est_actif")
+  companyId          Int
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  parentCostCenter   CostCenter?  @relation("CostCenterHierarchy", fields: [parentCostCenterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subCostCenters     CostCenter[] @relation("CostCenterHierarchy")
+  company            Company      @relation(fields: [companyId], references: [id])
+  entryLines         EntryLine[]
+
+  @@unique([code, companyId])
+  @@index([parentCostCenterId])
+  @@index([type, companyId])
+  @@index([companyId])
+}
+
+model ThirdParty {
+  id              Int              @id @default(autoincrement())
+  type            ThirdPartyType
+  name            String           @map("nom_raison_sociale")
+  taxId           String?          @map("nif")
+  rccm            String?
+  address         String?
+  phone           String?
+  email           String?
+  isVatSubject    Boolean          @default(false) @map("est_assujetti_tva")
+  creditLimit     Decimal?         @map("plafond_credit") @db.Decimal(15, 2)
+  deletedAt       DateTime?        @map("deleted_at")
+  companyId       Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  branchId        Int?
+  entryLines      EntryLine[]
+  invoices        Invoice[]
+  purchaseOrders  PurchaseOrder[]
+  stockMovements  StockMovement[]
+  stockReceptions StockReception[]
+  branch          Branch?          @relation(fields: [branchId], references: [id])
+  company         Company          @relation(fields: [companyId], references: [id])
+
+  @@unique([taxId, companyId])
+  @@index([name, companyId])
+  @@index([type, companyId])
+  @@index([email, companyId])
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model Product {
+  id                   Int                 @id @default(autoincrement())
+  sku                  String              @map("reference_sku")
+  name                 String              @map("designation")
+  type                 ProductType         @map("type_produit")
+  salesPriceExclTax    Decimal             @map("prix_vente_ht") @db.Decimal(15, 2)
+  purchasePriceExclTax Decimal             @map("prix_achat_ht") @db.Decimal(15, 2)
+  currentStock         Int                 @default(0) @map("stock_actuel")
+  alertStock           Int                 @default(0) @map("stock_alerte")
+  barcode              String?             @map("code_barre")
+  deletedAt            DateTime?           @map("deleted_at")
+  companyId            Int
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  branchId             Int?
+  invoiceLines         InvoiceLine[]
+  branch               Branch?             @relation(fields: [branchId], references: [id])
+  company              Company             @relation(fields: [companyId], references: [id])
+  purchaseOrderLines   PurchaseOrderLine[]
+  stockMovements       StockMovement[]
+
+  @@unique([sku, companyId])
+  @@index([name, companyId])
+  @@index([type, companyId])
+  @@index([barcode, companyId])
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model StockMovement {
+  id                  BigInt            @id @default(autoincrement())
+  movementDate        DateTime          @default(now()) @map("date_mouvement")
+  type                StockMovementType @map("type_mouvement")
+  quantity            Int               @map("quantite")
+  weightedAverageCost Decimal           @map("cout_unitaire_cmp") @db.Decimal(15, 2)
+  reason              String?           @map("motif")
+  productId           Int
+  companyId           Int
+  thirdPartyId        Int?              @map("third_party_id")
+  documentReference   String?           @map("reference_document")
+  stockReceptionId    String?           @map("stock_reception_id")
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  branchId            Int?
+  branch              Branch?           @relation(fields: [branchId], references: [id])
+  company             Company           @relation(fields: [companyId], references: [id])
+  product             Product           @relation(fields: [productId], references: [id])
+  stockReception      StockReception?   @relation(fields: [stockReceptionId], references: [id])
+  thirdParty          ThirdParty?       @relation(fields: [thirdPartyId], references: [id])
+
+  @@index([branchId])
+  @@index([companyId])
+  @@index([productId])
+  @@index([stockReceptionId])
+  @@index([thirdPartyId])
+}
+
+model PurchaseOrder {
+  id           String              @id @default(uuid()) @db.VarChar(36)
+  orderNumber  String              @unique @map("numero_commande")
+  supplierId   Int                 @map("fournisseur_id")
+  orderDate    DateTime            @default(now()) @map("date_commande")
+  expectedDate DateTime?           @map("date_livraison_prevue")
+  status       PurchaseOrderStatus @default(DRAFT) @map("statut")
+  totalAmount  Decimal             @map("montant_total") @db.Decimal(15, 2)
+  currency     String              @default("USD") @map("devise")
+  notes        String?             @map("notes")
+  companyId    Int                 @map("company_id")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  deletedAt    DateTime?           @map("deleted_at")
+  branchId     Int?
+  branch       Branch?             @relation(fields: [branchId], references: [id])
+  company      Company             @relation(fields: [companyId], references: [id])
+  supplier     ThirdParty          @relation(fields: [supplierId], references: [id])
+  lines        PurchaseOrderLine[]
+  receptions   StockReception[]
+
+  @@index([supplierId, companyId])
+  @@index([status, companyId])
+  @@index([orderDate, companyId])
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model PurchaseOrderLine {
+  id               String        @id @default(uuid()) @db.VarChar(36)
+  purchaseOrderId  String        @map("purchase_order_id")
+  productId        Int           @map("product_id")
+  quantity         Int           @map("quantite")
+  unitPrice        Decimal       @map("prix_unitaire") @db.Decimal(15, 2)
+  receivedQuantity Int           @default(0) @map("quantite_recue")
+  description      String?       @map("description")
+  createdAt        DateTime      @default(now())
+  product          Product       @relation(fields: [productId], references: [id])
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+model StockReception {
+  id                String          @id @default(uuid()) @db.VarChar(36)
+  receptionNumber   String          @unique @map("numero_reception")
+  purchaseOrderId   String?         @map("purchase_order_id")
+  supplierId        Int             @map("fournisseur_id")
+  receptionDate     DateTime        @default(now()) @map("date_reception")
+  documentReference String?         @map("reference_document")
+  notes             String?         @map("notes")
+  companyId         Int             @map("company_id")
+  createdAt         DateTime        @default(now())
+  deletedAt         DateTime?       @map("deleted_at")
+  branchId          Int?
+  movements         StockMovement[]
+  branch            Branch?         @relation(fields: [branchId], references: [id])
+  company           Company         @relation(fields: [companyId], references: [id])
+  supplier          ThirdParty      @relation(fields: [supplierId], references: [id])
+  purchaseOrder     PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+
+  @@index([supplierId, companyId])
+  @@index([purchaseOrderId])
+  @@index([receptionDate, companyId])
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model ElectronicFiscalDevice {
+  id              Int               @id @default(autoincrement())
+  defNid          String            @unique @map("def_nid")
+  serialNumber    String?           @map("numero_serie")
+  type            DefType           @map("type_def")
+  status          DefStatus         @default(ACTIVE) @map("statut")
+  apiEndpoint     String?           @map("url_api")
+  apiKey          String?           @map("cle_api")
+  certificate     String?           @map("certificat")
+  totalInvoices   BigInt            @default(0) @map("total_factures")
+  lastInvoiceDate DateTime?         @map("derniere_facture_date")
+  activatedAt     DateTime          @map("date_activation")
+  lastSyncAt      DateTime?         @map("derniere_synchro")
+  expiresAt       DateTime?         @map("date_expiration")
+  companyId       Int
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  branchId        Int?
+  transmissions   DefTransmission[]
+  branch          Branch?           @relation(fields: [branchId], references: [id])
+  company         Company           @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, status])
+  @@index([defNid])
+  @@index([branchId])
+}
+
+model DefTransmission {
+  id               BigInt                  @id @default(autoincrement())
+  invoiceId        BigInt
+  defId            Int?
+  status           TransmissionStatus      @default(PENDING)
+  dgiInvoiceId     String?                 @map("id_facture_dgi")
+  fiscalSecurityId String?                 @map("isf")
+  qrCode           String?                 @map("code_qr")
+  pdfUrl           String?                 @map("url_pdf")
+  requestPayload   Json                    @map("payload_requete")
+  responsePayload  Json?                   @map("payload_reponse")
+  errorMessage     String?                 @map("message_erreur")
+  errorCode        String?                 @map("code_erreur")
+  attemptCount     Int                     @default(1) @map("nombre_tentatives")
+  transmittedAt    DateTime?               @map("date_transmission")
+  validatedAt      DateTime?               @map("date_validation")
+  companyId        Int
+  createdAt        DateTime                @default(now()) @map("date_creation")
+  updatedAt        DateTime                @updatedAt
+  company          Company                 @relation(fields: [companyId], references: [id])
+  device           ElectronicFiscalDevice? @relation(fields: [defId], references: [id])
+  invoice          Invoice                 @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@index([status, companyId])
+  @@index([fiscalSecurityId])
+  @@index([defId])
+  @@index([companyId])
+}
+
+model BalanceSheet {
+  id                           Int        @id @default(autoincrement())
+  fiscalYearId                 Int
+  immobilisationsIncorporelles Decimal    @default(0.00) @map("immo_incorporelles") @db.Decimal(15, 2)
+  immobilisationsCorporelles   Decimal    @default(0.00) @map("immo_corporelles") @db.Decimal(15, 2)
+  immobilisationsFinancieres   Decimal    @default(0.00) @map("immo_financieres") @db.Decimal(15, 2)
+  totalActifImmobilise         Decimal    @default(0.00) @map("total_actif_immobilise") @db.Decimal(15, 2)
+  stocks                       Decimal    @default(0.00) @map("stocks") @db.Decimal(15, 2)
+  creances                     Decimal    @default(0.00) @map("creances") @db.Decimal(15, 2)
+  totalActifCirculant          Decimal    @default(0.00) @map("total_actif_circulant") @db.Decimal(15, 2)
+  tresorerieActif              Decimal    @default(0.00) @map("tresorerie_actif") @db.Decimal(15, 2)
+  totalActif                   Decimal    @default(0.00) @map("total_actif") @db.Decimal(15, 2)
+  capital                      Decimal    @default(0.00) @map("capital") @db.Decimal(15, 2)
+  reserves                     Decimal    @default(0.00) @map("reserves") @db.Decimal(15, 2)
+  reportANouveau               Decimal    @default(0.00) @map("report_a_nouveau") @db.Decimal(15, 2)
+  resultatExercice             Decimal    @default(0.00) @map("resultat_exercice") @db.Decimal(15, 2)
+  subventionsInvestissement    Decimal    @default(0.00) @map("subventions_investissement") @db.Decimal(15, 2)
+  provisionsReglement          Decimal    @default(0.00) @map("provisions_reglementees") @db.Decimal(15, 2)
+  totalCapitauxPropres         Decimal    @default(0.00) @map("total_capitaux_propres") @db.Decimal(15, 2)
+  empruntsObligations          Decimal    @default(0.00) @map("emprunts_obligations") @db.Decimal(15, 2)
+  dettesFinancieresLT          Decimal    @default(0.00) @map("dettes_financieres_lt") @db.Decimal(15, 2)
+  provisionsRisquesCharges     Decimal    @default(0.00) @map("provisions_risques_charges") @db.Decimal(15, 2)
+  totalDettesFinancieres       Decimal    @default(0.00) @map("total_dettes_financieres") @db.Decimal(15, 2)
+  dettesCirculantes            Decimal    @default(0.00) @map("dettes_circulantes") @db.Decimal(15, 2)
+  fournisseurs                 Decimal    @default(0.00) @map("fournisseurs") @db.Decimal(15, 2)
+  dettesFiscalesSociales       Decimal    @default(0.00) @map("dettes_fiscales_sociales") @db.Decimal(15, 2)
+  totalPassifCirculant         Decimal    @default(0.00) @map("total_passif_circulant") @db.Decimal(15, 2)
+  tresoreriePassif             Decimal    @default(0.00) @map("tresorerie_passif") @db.Decimal(15, 2)
+  totalPassif                  Decimal    @default(0.00) @map("total_passif") @db.Decimal(15, 2)
+  companyId                    Int
+  createdAt                    DateTime   @default(now())
+  updatedAt                    DateTime   @updatedAt
+  company                      Company    @relation(fields: [companyId], references: [id])
+  fiscalYear                   FiscalYear @relation(fields: [fiscalYearId], references: [id])
+
+  @@unique([fiscalYearId, companyId])
+  @@index([companyId])
+}
+
+model IncomeStatement {
+  id                          Int        @id @default(autoincrement())
+  fiscalYearId                Int
+  chiffreAffaires             Decimal    @default(0.00) @map("chiffre_affaires") @db.Decimal(15, 2)
+  productionStockee           Decimal    @default(0.00) @map("production_stockee") @db.Decimal(15, 2)
+  productionImmobilisee       Decimal    @default(0.00) @map("production_immobilisee") @db.Decimal(15, 2)
+  reprisesSurProvisisons      Decimal    @default(0.00) @map("reprises_provisions") @db.Decimal(15, 2)
+  autresProduits              Decimal    @default(0.00) @map("autres_produits") @db.Decimal(15, 2)
+  totalProduitsAO             Decimal    @default(0.00) @map("total_produits_ao") @db.Decimal(15, 2)
+  achatsConsommes             Decimal    @default(0.00) @map("achats_consommes") @db.Decimal(15, 2)
+  variationStocks             Decimal    @default(0.00) @map("variation_stocks") @db.Decimal(15, 2)
+  achatsStockes               Decimal    @default(0.00) @map("achats_stockes") @db.Decimal(15, 2)
+  margeCommerciale            Decimal    @default(0.00) @map("marge_commerciale") @db.Decimal(15, 2)
+  autresAchats                Decimal    @default(0.00) @map("autres_achats") @db.Decimal(15, 2)
+  transports                  Decimal    @default(0.00) @map("transports") @db.Decimal(15, 2)
+  servicesExterieurs          Decimal    @default(0.00) @map("services_exterieurs") @db.Decimal(15, 2)
+  impotsTaxes                 Decimal    @default(0.00) @map("impots_taxes") @db.Decimal(15, 2)
+  autresCharges               Decimal    @default(0.00) @map("autres_charges") @db.Decimal(15, 2)
+  valeursAjoutee              Decimal    @default(0.00) @map("valeur_ajoutee") @db.Decimal(15, 2)
+  chargesPersonnel            Decimal    @default(0.00) @map("charges_personnel") @db.Decimal(15, 2)
+  chargesSociales             Decimal    @default(0.00) @map("charges_sociales") @db.Decimal(15, 2)
+  excedentBrutExploitation    Decimal    @default(0.00) @map("excedent_brut_exploitation") @db.Decimal(15, 2)
+  autresProditsExploitation   Decimal    @default(0.00) @map("autres_produits_exploitation") @db.Decimal(15, 2)
+  autresChargesExploitation   Decimal    @default(0.00) @map("autres_charges_exploitation") @db.Decimal(15, 2)
+  dotationsAmortissements     Decimal    @default(0.00) @map("dotations_amortissements") @db.Decimal(15, 2)
+  dotationsProvisions         Decimal    @default(0.00) @map("dotations_provisions") @db.Decimal(15, 2)
+  resultatExploitation        Decimal    @default(0.00) @map("resultat_exploitation") @db.Decimal(15, 2)
+  produitsFinanciers          Decimal    @default(0.00) @map("produits_financiers") @db.Decimal(15, 2)
+  chargesFinancieres          Decimal    @default(0.00) @map("charges_financieres") @db.Decimal(15, 2)
+  resultatFinancier           Decimal    @default(0.00) @map("resultat_financier") @db.Decimal(15, 2)
+  resultatActivitesOrdinaires Decimal    @default(0.00) @map("resultat_ao") @db.Decimal(15, 2)
+  produitsHAO                 Decimal    @default(0.00) @map("produits_hao") @db.Decimal(15, 2)
+  chargesHAO                  Decimal    @default(0.00) @map("charges_hao") @db.Decimal(15, 2)
+  resultatHAO                 Decimal    @default(0.00) @map("resultat_hao") @db.Decimal(15, 2)
+  participationSalaries       Decimal    @default(0.00) @map("participation_salaries") @db.Decimal(15, 2)
+  impotsSurBenefices          Decimal    @default(0.00) @map("impots_sur_benefices") @db.Decimal(15, 2)
+  resultatNet                 Decimal    @default(0.00) @map("resultat_net") @db.Decimal(15, 2)
+  companyId                   Int
+  createdAt                   DateTime   @default(now())
+  updatedAt                   DateTime   @updatedAt
+  company                     Company    @relation(fields: [companyId], references: [id])
+  fiscalYear                  FiscalYear @relation(fields: [fiscalYearId], references: [id])
+
+  @@unique([fiscalYearId, companyId])
+  @@index([companyId])
+}
+
+model CashFlowStatement {
+  id                            Int        @id @default(autoincrement())
+  fiscalYearId                  Int
+  capaciteAutofinancementGlobal Decimal    @default(0.00) @map("cafg") @db.Decimal(15, 2)
+  variationBFR                  Decimal    @default(0.00) @map("variation_bfr") @db.Decimal(15, 2)
+  fluxTresorerieActivite        Decimal    @default(0.00) @map("flux_tresorerie_activite") @db.Decimal(15, 2)
+  acquisitionImmobilisations    Decimal    @default(0.00) @map("acquisition_immobilisations") @db.Decimal(15, 2)
+  cessionImmobilisations        Decimal    @default(0.00) @map("cession_immobilisations") @db.Decimal(15, 2)
+  fluxTresorerieInvestissement  Decimal    @default(0.00) @map("flux_tresorerie_investissement") @db.Decimal(15, 2)
+  augmentationCapital           Decimal    @default(0.00) @map("augmentation_capital") @db.Decimal(15, 2)
+  empruntsNouveaux              Decimal    @default(0.00) @map("emprunts_nouveaux") @db.Decimal(15, 2)
+  remboursementEmprunts         Decimal    @default(0.00) @map("remboursement_emprunts") @db.Decimal(15, 2)
+  dividendesVerses              Decimal    @default(0.00) @map("dividendes_verses") @db.Decimal(15, 2)
+  fluxTresorerieFinancement     Decimal    @default(0.00) @map("flux_tresorerie_financement") @db.Decimal(15, 2)
+  variationTresorerie           Decimal    @default(0.00) @map("variation_tresorerie") @db.Decimal(15, 2)
+  tresorerieDebut               Decimal    @default(0.00) @map("tresorerie_debut") @db.Decimal(15, 2)
+  tresorerieFin                 Decimal    @default(0.00) @map("tresorerie_fin") @db.Decimal(15, 2)
+  companyId                     Int
+  createdAt                     DateTime   @default(now())
+  updatedAt                     DateTime   @updatedAt
+  company                       Company    @relation(fields: [companyId], references: [id])
+  fiscalYear                    FiscalYear @relation(fields: [fiscalYearId], references: [id])
+
+  @@unique([fiscalYearId, companyId])
+  @@index([companyId])
+}
+
+model Department {
+  id          String     @id @default(uuid()) @db.VarChar(36)
+  name        String
+  description String
+  companyId   Int
+  branchId    Int?
+  branch      Branch?    @relation(fields: [branchId], references: [id])
+  company     Company    @relation(fields: [companyId], references: [id])
+  employees   Employee[]
+
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model Employee {
+  id                     String                  @id @default(uuid()) @db.VarChar(36)
+  firstName              String                  @map("firstName")
+  lastName               String                  @map("lastName")
+  email                  String?                 @unique
+  phone                  String?
+  jobTitle               String?
+  hireDate               DateTime
+  baseSalary             Decimal                 @default(0.00) @db.Decimal(15, 2)
+  taxDependents          Int                     @default(0)
+  cnssNumber             String?
+  tinNumber              String?
+  isActive               Boolean                 @default(true)
+  deletedAt              DateTime?
+  companyId              Int
+  departmentId           String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  branchId               Int?
+  attendances            Attendance[]
+  branch                 Branch?                 @relation(fields: [branchId], references: [id])
+  company                Company                 @relation(fields: [companyId], references: [id])
+  department             Department?             @relation(fields: [departmentId], references: [id])
+  leaves                 Leave[]
+  payslips               Payslip[]
+  trainingParticipations TrainingParticipation[]
+
+  @@index([email])
+  @@index([isActive, companyId])
+  @@index([hireDate])
+  @@index([branchId])
+  @@index([companyId])
+  @@index([departmentId])
+}
+
+model Leave {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  employeeId      String
+  date            DateTime @default(now())
+  startDate       DateTime
+  endDate         DateTime
+  reason          String
+  status          String   @default("PENDING")
+  rejectionReason String?
+  companyId       Int
+  branchId        Int?
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+  company         Company  @relation(fields: [companyId], references: [id])
+  employee        Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([branchId])
+  @@index([companyId])
+  @@index([employeeId])
+}
+
+model Attendance {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  employeeId    String
+  date          DateTime @default(now())
+  arrivalTime   DateTime
+  departureTime DateTime
+  status        String   @default("PENDING")
+  workedHours   Int
+  companyId     Int
+  branchId      Int?
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  company       Company  @relation(fields: [companyId], references: [id])
+  employee      Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([branchId])
+  @@index([companyId])
+  @@index([employeeId])
+}
+
+model TrainingDomain {
+  id          String  @id @default(uuid()) @db.VarChar(36)
+  name        String
+  description String
+  companyId   Int
+  branchId    Int?
+  branch      Branch? @relation(fields: [branchId], references: [id])
+  company     Company @relation(fields: [companyId], references: [id])
+
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model Training {
+  id                     String                  @id @default(uuid()) @db.VarChar(36)
+  name                   String
+  description            String
+  numberHours            Int
+  companyId              Int
+  branchId               Int?
+  branch                 Branch?                 @relation(fields: [branchId], references: [id])
+  company                Company                 @relation(fields: [companyId], references: [id])
+  trainingParticipations TrainingParticipation[]
+
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model TrainingParticipation {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  employeeId String
+  trainingId String
+  companyId  Int
+  branchId   Int?
+  branch     Branch?  @relation(fields: [branchId], references: [id])
+  company    Company  @relation(fields: [companyId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  training   Training @relation(fields: [trainingId], references: [id])
+
+  @@index([branchId])
+  @@index([companyId])
+  @@index([employeeId])
+  @@index([trainingId])
+}
+
+model PayrollPeriod {
+  id        String    @id @default(uuid()) @db.VarChar(36)
+  month     Int
+  year      Int
+  name      String?
+  code      String
+  status    String    @default("OPEN")
+  companyId Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  branchId  Int?
+  branch    Branch?   @relation(fields: [branchId], references: [id])
+  company   Company   @relation(fields: [companyId], references: [id])
+  payslips  Payslip[]
+
+  @@unique([month, year, companyId])
+  @@index([branchId])
+  @@index([companyId])
+}
+
+model Payslip {
+  id              String           @id @default(uuid()) @db.VarChar(36)
+  grossSalary     Decimal          @default(0.00) @db.Decimal(15, 2)
+  netSalary       Decimal          @default(0.00) @db.Decimal(15, 2)
+  paymentDate     DateTime?
+  status          String           @default("DRAFT")
+  employeeId      String
+  periodId        String
+  companyId       Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  branchId        Int?
+  accountingEntry AccountingEntry?
+  branch          Branch?          @relation(fields: [branchId], references: [id])
+  company         Company          @relation(fields: [companyId], references: [id])
+  employee        Employee         @relation(fields: [employeeId], references: [id])
+  period          PayrollPeriod    @relation(fields: [periodId], references: [id])
+  lines           PayslipLine[]
+
+  @@index([branchId])
+  @@index([companyId])
+  @@index([employeeId])
+  @@index([periodId])
+}
+
+model PayslipLine {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  label      String
+  type       String
+  category   String
+  amount     Decimal  @default(0.00) @db.Decimal(15, 2)
+  baseAmount Decimal? @db.Decimal(15, 2)
+  rate       Float?
+  payslipId  String
+  companyId  Int
+  company    Company  @relation(fields: [companyId], references: [id])
+  payslip    Payslip  @relation(fields: [payslipId], references: [id])
+
+  @@index([companyId])
+  @@index([payslipId])
+}
+
+model Budget {
+  id           String       @id @default(uuid()) @db.VarChar(36)
+  name         String
+  description  String?
+  status       String       @default("DRAFT")
+  fiscalYearId Int
+  companyId    Int
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  branchId     Int?
+  branch       Branch?      @relation(fields: [branchId], references: [id])
+  company      Company      @relation(fields: [companyId], references: [id])
+  fiscalYear   FiscalYear   @relation(fields: [fiscalYearId], references: [id])
+  lines        BudgetLine[]
+
+  @@index([branchId])
+  @@index([companyId])
+  @@index([fiscalYearId])
+}
+
+model BudgetLine {
+  id             String  @id @default(uuid()) @db.VarChar(36)
+  forecastAmount Decimal @default(0.00) @db.Decimal(15, 2)
+  realizedAmount Decimal @default(0.00) @db.Decimal(15, 2)
+  accountId      Int
+  budgetId       String
+  companyId      Int
+  branchId       Int?
+  account        Account @relation(fields: [accountId], references: [id])
+  branch         Branch? @relation(fields: [branchId], references: [id])
+  budget         Budget  @relation(fields: [budgetId], references: [id])
+  company        Company @relation(fields: [companyId], references: [id])
+
+  @@index([accountId])
+  @@index([branchId])
+  @@index([budgetId])
+  @@index([companyId])
+}
+
+enum InvoiceType {
+  NORMAL
+  CREDIT_NOTE @map("AVOIR")
+}
+
+enum InvoiceStatus {
+  DRAFT          @map("BROUILLON")
+  VALIDATED      @map("VALIDEE")
+  SIGNED         @map("SIGNEE")
+  PARTIALLY_PAID @map("PARTIELLEMENT_PAYEE")
+  PAID           @map("PAYEE")
+  CANCELED       @map("ANNULEE")
+}
+
+enum PaymentMethod {
+  CASH          @map("ESPECES")
+  BANK_TRANSFER @map("VIREMENT")
+  MOBILE_MONEY  @map("MOBILE_MONEY")
+}
+
+enum AccountType {
+  ASSET     @map("ACTIF")
+  LIABILITY @map("PASSIF")
+  EXPENSE   @map("CHARGE")
+  REVENUE   @map("PRODUIT")
+}
+
+enum JournalType {
+  SALE         @map("VT")
+  PURCHASE     @map("HA")
+  BANK         @map("BQ")
+  CASH         @map("CA")
+  OD           @map("OD")
+  PAYROLL      @map("PA")
+  FIXED_ASSETS @map("IM")
+  STOCK        @map("ST")
+  SUPPLIERS    @map("FO")
+  CUSTOMERS    @map("CL")
+  SOCIAL       @map("SO")
+  FISCAL       @map("FI")
+  BALANCE      @map("AN")
+}
+
+enum EntryStatus {
+  PROVISIONAL @map("PROVISOIRE")
+  VALIDATED   @map("VALIDEE")
+}
+
+enum ThirdPartyType {
+  CUSTOMER @map("CLIENT")
+  SUPPLIER @map("FOURNISSEUR")
+}
+
+enum ProductType {
+  GOODS   @map("BIEN")
+  SERVICE @map("SERVICE")
+}
+
+enum StockMovementType {
+  IN  @map("ENTREE")
+  OUT @map("SORTIE")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT              @map("BROUILLON")
+  SENT               @map("ENVOYE")
+  PARTIALLY_RECEIVED @map("PARTIELLEMENT_RECU")
+  RECEIVED           @map("RECU")
+  CANCELLED          @map("ANNULE")
+}
+
+enum DefType {
+  PHYSICAL       @map("PHYSIQUE")
+  DEMATERIALIZED @map("DEMATERIALISE")
+}
+
+enum DefStatus {
+  ACTIVE    @map("ACTIF")
+  INACTIVE  @map("INACTIF")
+  SUSPENDED @map("SUSPENDU")
+  REVOKED   @map("REVOQUE")
+}
+
+enum TransmissionStatus {
+  PENDING    @map("EN_ATTENTE")
+  PROCESSING @map("EN_COURS")
+  VALIDATED  @map("VALIDEE")
+  REJECTED   @map("REJETEE")
+  TIMEOUT    @map("TIMEOUT")
+}
