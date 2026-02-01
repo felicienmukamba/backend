@@ -19,6 +19,14 @@ export class BudgetService {
 
         if (!budget) throw new NotFoundException(`Budget ${budgetId} not found`);
 
+        // Handle case where budget has no lines yet
+        if (!budget.lines || budget.lines.length === 0) {
+            return {
+                ...budget,
+                lines: []
+            };
+        }
+
         const refinedLines = await Promise.all(budget.lines.map(async (line) => {
             // Aggregate accounting entries
             const aggregate = await this.prisma.entryLine.aggregate({
@@ -63,11 +71,12 @@ export class BudgetService {
     // --- CRUD ---
 
     async create(dto: any, companyId: number) {
+        const { fiscalYearId, ...budgetData } = dto;
         return this.prisma.budget.create({
             data: {
-                ...dto,
+                ...budgetData,
                 company: { connect: { id: companyId } },
-                fiscalYear: { connect: { id: dto.fiscalYearId } }
+                fiscalYear: { connect: { id: fiscalYearId } }
             }
         });
     }
