@@ -53,4 +53,8 @@ export class CreateCompanyDto {
     @ApiProperty({ required: false, example: { serverUrl: 'http://mcf.dgi.gouv.cd' }, description: 'Configuration MCF (JSON)' })
     @IsOptional()
     mcfConfig?: any;
+
+    @ApiProperty({ required: false, example: true, description: 'Compte actif/inactif' })
+    @IsOptional()
+    isActive?: boolean;
 }

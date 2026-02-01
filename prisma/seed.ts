@@ -339,9 +339,21 @@ async function seedCompanyData(config: { name: string, taxId: string, email: str
 
     console.log(`✅ Created ${Object.keys(users).length} users with different roles`);
 
-    // Standard OHADA Accounts
+    // 3. Create OHADA Accounts (Inlined)
+    const STANDARD_JOURNALS = [
+        { code: 'VT', label: 'Ventes', type: 'SALE' },
+        { code: 'HA', label: 'Achats', type: 'PURCHASE' },
+        { code: 'BQ', label: 'Banque', type: 'BANK' },
+        { code: 'CA', label: 'Caisse', type: 'CASH' },
+        { code: 'OD', label: 'Divers', type: 'OD' },
+        { code: 'PA', label: 'Paie', type: 'PAYROLL' },
+        { code: 'ST', label: 'Stocks', type: 'STOCK' },
+    ];
+
+    // Ensure we can access AccountType via Prisma or import it if needed
+    // Assuming AccountType is imported at top of file
+
     const OHADA_ACCOUNTS = [
-        // CLASSE 1 : COMPTES DE RESSOURCES DURABLES
         { number: '101', label: 'Capital social', class: 1, type: AccountType.LIABILITY },
         { number: '1011', label: 'Capital social souscrit, non appelé', class: 1, type: AccountType.LIABILITY },
         { number: '1012', label: 'Capital social souscrit, appelé, non versé', class: 1, type: AccountType.LIABILITY },
@@ -470,11 +482,9 @@ async function seedCompanyData(config: { name: string, taxId: string, email: str
     console.log(`📚 Seeding ${OHADA_ACCOUNTS.length} OHADA Accounts...`);
 
     const accountMap: Record<string, any> = {};
+    const sortedAccounts = [...OHADA_ACCOUNTS].sort((a, b) => a.number.length - b.number.length);
 
-    // Create accounts in batches or one by one
-    for (const acc of OHADA_ACCOUNTS) {
-        // Determine parent based on number length (simplified)
-        // Level 2 (e.g. 10) -> No parent, Level 3 (e.g. 101) -> Parent 10
+    for (const acc of sortedAccounts) {
         let parentId: number | null = null;
         if (acc.number.length > 2) {
             const parentNum = acc.number.substring(0, acc.number.length - 1);
@@ -499,31 +509,34 @@ async function seedCompanyData(config: { name: string, taxId: string, email: str
     }
 
     // Journals
-    const journals = [
-        { code: 'VT', label: 'Ventes', type: JournalType.SALE },
-        { code: 'HA', label: 'Achats', type: JournalType.PURCHASE },
-        { code: 'BQ', label: 'Banque', type: JournalType.BANK },
-        { code: 'CA', label: 'Caisse', type: JournalType.CASH },
-        { code: 'OD', label: 'Divers', type: JournalType.OD },
-        { code: 'PA', label: 'Paie', type: JournalType.PAYROLL },
-        { code: 'ST', label: 'Stocks', type: JournalType.STOCK },
-    ];
-
     const journalMap: Record<string, any> = {};
-    for (const j of journals) {
+    for (const j of STANDARD_JOURNALS) {
         const journal = await prisma.journal.create({
-            data: { ...j, companyId: company.id, branchId: branch.id }
+            data: { ...j, companyId: company.id, branchId: branch.id, type: j.type as JournalType } // Cast type
         });
         journalMap[j.code] = journal;
     }
 
-    // Fiscal Year
+    // Fiscal Years
+    // 2025 (Closed)
+    await prisma.fiscalYear.create({
+        data: {
+            code: '2025',
+            startDate: new Date('2025-01-01'),
+            endDate: new Date('2025-12-31'),
+            companyId: company.id,
+            isClosed: true
+        }
+    });
+
+    // 2026 (Active)
     const fiscalYear = await prisma.fiscalYear.create({
         data: {
             code: '2026',
             startDate: new Date('2026-01-01'),
             endDate: new Date('2026-12-31'),
-            companyId: company.id
+            companyId: company.id,
+            isClosed: false
         }
     });
 
@@ -1091,7 +1104,7 @@ async function seedCompanyData(config: { name: string, taxId: string, email: str
     console.log(`   ✓ ${Object.keys(roles).length} roles created`);
     console.log(`   ✓ ${Object.keys(users).length} users created`);
     console.log(`   ✓ ${OHADA_ACCOUNTS.length} accounts created`);
-    console.log(`   ✓ ${journals.length} journals created`);
+    console.log(`   ✓ ${STANDARD_JOURNALS.length} journals created`);
     console.log(`   ✓ ${Object.keys(departments).length} departments created`);
     console.log(`   ✓ ${Object.keys(employees).length} employees created`);
     console.log(`   ✓ ${products.length} products created`);

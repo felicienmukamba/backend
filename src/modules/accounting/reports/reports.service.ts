@@ -1,22 +1,40 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AccountType } from '@prisma/client';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class ReportsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cls: ClsService
+    ) { }
+
+    private getCompanyId(): number {
+        const companyId = this.cls.get('companyId');
+        if (!companyId) throw new BadRequestException('Company context missing');
+        return companyId;
+    }
 
     /**
      * Generate Balance Sheet (Bilan OHADA)
      * Assets vs Liabilities based on Account Classes 1-5
      */
     async getBalanceSheet(fiscalYearId: number, useLocal = true) {
+        const companyId = this.getCompanyId();
         const debitField = useLocal ? 'debitLocal' : 'debit';
         const creditField = useLocal ? 'creditLocal' : 'credit';
+
+        // 1. Validate Fiscal Year Ownership
+        const fiscalYear = await this.prisma.fiscalYear.findFirst({
+            where: { id: fiscalYearId, companyId }
+        });
+        if (!fiscalYear) throw new BadRequestException('Invalid Fiscal Year for this Company');
 
         // Get all accounts with their balances for the fiscal year
         const accounts = await this.prisma.account.findMany({
             where: {
+                companyId, // Enforce Company Isolation
                 accountClass: { in: [1, 2, 3, 4, 5] },
             },
             include: {
@@ -24,6 +42,7 @@ export class ReportsService {
                     where: {
                         entry: {
                             fiscalYearId,
+                            companyId, // Redundant but safe
                             status: 'VALIDATED', // Only validated entries
                         },
                     },
@@ -142,11 +161,19 @@ export class ReportsService {
      * Revenue vs Expenses (Classes 6, 7, 8)
      */
     async getProfitAndLoss(fiscalYearId: number, useLocal = true) {
+        const companyId = this.getCompanyId();
         const debitField = useLocal ? 'debitLocal' : 'debit';
         const creditField = useLocal ? 'creditLocal' : 'credit';
 
+        // Validate Fiscal Year
+        const fiscalYear = await this.prisma.fiscalYear.findFirst({
+            where: { id: fiscalYearId, companyId }
+        });
+        if (!fiscalYear) throw new BadRequestException('Invalid Fiscal Year');
+
         const accounts = await this.prisma.account.findMany({
             where: {
+                companyId,
                 accountClass: { in: [6, 7, 8] },
             },
             include: {
@@ -154,6 +181,7 @@ export class ReportsService {
                     where: {
                         entry: {
                             fiscalYearId,
+                            companyId,
                             status: 'VALIDATED',
                         },
                     },
@@ -226,15 +254,18 @@ export class ReportsService {
      * Generate Trial Balance
      */
     async getTrialBalance(fiscalYearId: number, useLocal = true) {
+        const companyId = this.getCompanyId();
         const debitField = useLocal ? 'debitLocal' : 'debit';
         const creditField = useLocal ? 'creditLocal' : 'credit';
 
         const accounts = await this.prisma.account.findMany({
+            where: { companyId },
             include: {
                 entryLines: {
                     where: {
                         entry: {
                             fiscalYearId,
+                            companyId,
                             status: 'VALIDATED',
                         },
                     },
@@ -279,14 +310,22 @@ export class ReportsService {
      * VAT Report Logic 
      */
     async getVATReport(fiscalYearId: number, useLocal = true) {
+        const companyId = this.getCompanyId();
         const debitField = useLocal ? 'debitLocal' : 'debit';
         const creditField = useLocal ? 'creditLocal' : 'credit';
 
         const vatAccounts = await this.prisma.account.findMany({
             where: {
+                companyId,
                 accountNumber: { startsWith: '44' } // Broad search for State/Tax accounts
             },
-            include: { entryLines: { where: { entry: { fiscalYearId, status: 'VALIDATED' } } } }
+            include: {
+                entryLines: {
+                    where: {
+                        entry: { fiscalYearId, companyId, status: 'VALIDATED' }
+                    }
+                }
+            }
         });
 
         const collected = vatAccounts.filter(a => a.accountNumber.startsWith('443') || a.accountNumber.startsWith('444'));
@@ -315,15 +354,16 @@ export class ReportsService {
      * OHADA Compliant Categorization
      */
     async getCashFlowStatement(fiscalYearId: number, useLocal = true) {
+        const companyId = this.getCompanyId();
         const debitField = useLocal ? 'debitLocal' : 'debit';
         const creditField = useLocal ? 'creditLocal' : 'credit';
 
         // 1. Get all Class 5 Accounts
         const cashAccounts = await this.prisma.account.findMany({
-            where: { accountClass: 5 },
+            where: { accountClass: 5, companyId },
             include: {
                 entryLines: {
-                    where: { entry: { fiscalYearId, status: 'VALIDATED' } },
+                    where: { entry: { fiscalYearId, companyId, status: 'VALIDATED' } },
                     include: { entry: { include: { entryLines: { include: { account: true } }, journal: true } } }
                 }
             }
@@ -398,16 +438,17 @@ export class ReportsService {
      * Generate Equity Changes Statement (Tableau de Variation des Capitaux Propres - TVCP)
      */
     async getEquityChangesStatement(fiscalYearId: number, useLocal = true) {
+        const companyId = this.getCompanyId();
         const debitField = useLocal ? 'debitLocal' : 'debit';
         const creditField = useLocal ? 'creditLocal' : 'credit';
 
         // 1. Get Class 1 Accounts
         const accounts = await this.prisma.account.findMany({
-            where: { accountClass: 1 },
+            where: { accountClass: 1, companyId },
             include: {
                 entryLines: {
                     where: {
-                        entry: { fiscalYearId, status: 'VALIDATED' }
+                        entry: { fiscalYearId, companyId, status: 'VALIDATED' }
                     },
                     include: { entry: { include: { journal: true } } }
                 }
@@ -586,7 +627,8 @@ export class ReportsService {
     /**
      * Dashboard Statistics
      */
-    async getDashboardStats(fiscalYearId: number, companyId: number) {
+    async getDashboardStats(fiscalYearId: number) {
+        // Note: companyId is automatically handled by the called methods via CLS
         const [income, balance, vat, cashFlow] = await Promise.all([
             this.getProfitAndLoss(fiscalYearId, false),
             this.getBalanceSheet(fiscalYearId, false),
@@ -642,16 +684,17 @@ export class ReportsService {
         startDate?: Date,
         endDate?: Date
     ) {
-        const account = await this.prisma.account.findUnique({
-            where: { id: accountId }
+        const companyId = this.getCompanyId();
+        const account = await this.prisma.account.findFirst({
+            where: { id: accountId, companyId }
         });
 
         if (!account) {
-            throw new Error('Account not found');
+            throw new Error('Account not found or access denied');
         }
 
-        const fiscalYear = await this.prisma.fiscalYear.findUnique({
-            where: { id: fiscalYearId }
+        const fiscalYear = await this.prisma.fiscalYear.findFirst({
+            where: { id: fiscalYearId, companyId }
         });
 
         if (!fiscalYear) {
@@ -662,6 +705,7 @@ export class ReportsService {
             where: {
                 accountId,
                 entry: {
+                    companyId,
                     fiscalYearId,
                     status: 'VALIDATED',
                     entryDate: {
@@ -753,16 +797,17 @@ export class ReportsService {
         journalCode: string,
         month?: number
     ) {
+        const companyId = this.getCompanyId();
         const journal = await this.prisma.journal.findFirst({
-            where: { code: journalCode }
+            where: { code: journalCode, companyId }
         });
 
         if (!journal) {
             throw new Error(`Journal ${journalCode} not found`);
         }
 
-        const fiscalYear = await this.prisma.fiscalYear.findUnique({
-            where: { id: fiscalYearId }
+        const fiscalYear = await this.prisma.fiscalYear.findFirst({
+            where: { id: fiscalYearId, companyId }
         });
 
         if (!fiscalYear) {
@@ -770,6 +815,7 @@ export class ReportsService {
         }
 
         const whereClause: any = {
+            companyId,
             fiscalYearId,
             journalId: journal.id,
             status: 'VALIDATED'
@@ -921,6 +967,14 @@ export class ReportsService {
     }
 
     async getPerformanceStats(fiscalYearId: number) {
+        const companyId = this.getCompanyId();
+
+        // Validate Fiscal Year
+        const fiscalYear = await this.prisma.fiscalYear.findFirst({
+            where: { id: fiscalYearId, companyId }
+        });
+        if (!fiscalYear) throw new BadRequestException('Fiscal Year not found or access denied');
+
         const months: { month: number; year: number; label: string }[] = [];
         const now = new Date();
         for (let i = 5; i >= 0; i--) {
@@ -940,6 +994,7 @@ export class ReportsService {
                 where: {
                     entry: {
                         fiscalYearId,
+                        companyId, // Enforce isolation
                         status: 'VALIDATED',
                         entryDate: { gte: startDate, lte: endDate }
                     },

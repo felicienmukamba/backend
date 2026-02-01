@@ -1,14 +1,20 @@
-import { Controller, Get, Param, ParseIntPipe, Post, Req, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Post, Req, UseGuards, Query, Res, StreamableFile } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ExportService } from '../services/export.service';
+import type { ReportType, ExportFormat } from '../services/export.service';
+import type { Response } from 'express';
 
 @ApiTags('Accounting - Reports')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/reports')
 export class ReportsController {
-    constructor(private readonly reportsService: ReportsService) { }
+    constructor(
+        private readonly reportsService: ReportsService,
+        private readonly exportService: ExportService
+    ) { }
 
     @Get('dashboard/stats')
     @ApiOperation({
@@ -16,13 +22,23 @@ export class ReportsController {
         description: 'Retourne les KPIs principaux pour le dashboard'
     })
     @ApiQuery({ name: 'fiscalYearId', required: true, type: Number, example: 1 })
-    @ApiQuery({ name: 'companyId', required: true, type: Number, example: 1 })
     @ApiResponse({ status: 200, description: 'Stats générées avec succès' })
     getDashboardStats(
         @Query('fiscalYearId', ParseIntPipe) fiscalYearId: number,
-        @Query('companyId', ParseIntPipe) companyId: number,
     ) {
-        return this.reportsService.getDashboardStats(fiscalYearId, companyId);
+        return this.reportsService.getDashboardStats(fiscalYearId);
+    }
+
+    @Get('dashboard/performance')
+    @ApiOperation({
+        summary: 'Performance mensuelle',
+        description: 'Retourne les revenus et charges des 6 derniers mois'
+    })
+    @ApiResponse({ status: 200, description: 'Performance générée avec succès' })
+    async getPerformance(
+        @Query('fiscalYearId', ParseIntPipe) fiscalYearId: number,
+    ) {
+        return this.reportsService.getPerformanceStats(fiscalYearId);
     }
 
     @Get('balance-sheet/:fiscalYearId')
@@ -226,5 +242,35 @@ export class ReportsController {
     @ApiResponse({ status: 200, description: 'Notes générées' })
     getNotesAnnexes(@Param('fiscalYearId', ParseIntPipe) fiscalYearId: number) {
         return this.reportsService.getNotesAnnexes(fiscalYearId);
+    }
+
+    // ========== EXPORT ENDPOINTS ==========
+
+    @Get('export/:reportType/:format/:fiscalYearId')
+    @ApiOperation({
+        summary: 'Export comptable (PDF/Excel/CSV)',
+        description: 'Exporte un rapport dans le format spécifié'
+    })
+    @ApiParam({ name: 'reportType', enum: ['balance-sheet', 'profit-loss', 'trial-balance', 'cash-flow', 'vat', 'balance-6-columns'] })
+    @ApiParam({ name: 'format', enum: ['pdf', 'excel', 'csv'] })
+    @ApiParam({ name: 'fiscalYearId', type: Number })
+    @ApiResponse({ status: 200, description: 'Fichier exporté avec succès' })
+    async exportReport(
+        @Param('reportType') reportType: ReportType,
+        @Param('format') format: ExportFormat,
+        @Param('fiscalYearId', ParseIntPipe) fiscalYearId: number,
+        @Req() req,
+        @Res() res: Response
+    ) {
+        const { stream, filename, mimeType } = await this.exportService.exportReport(
+            reportType,
+            fiscalYearId,
+            format,
+            req.user.companyId
+        );
+
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        stream.pipe(res);
     }
 }

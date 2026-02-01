@@ -32,8 +32,8 @@ export class FiscalYearsController {
     @ApiBody({ type: CreateFiscalYearDto })
     @ApiCreatedResponse({ description: 'Exercice ouvert avec succès.' })
     @ApiConflictResponse({ description: 'Un exercice existe déjà pour cette période ou chevauchement de dates.' })
-    create(@Body() createDto: CreateFiscalYearDto) {
-        return this.fiscalYearsService.create(createDto);
+    create(@Body() createDto: CreateFiscalYearDto, @Req() req) {
+        return this.fiscalYearsService.create(createDto, req.user.companyId);
     }
 
     @Get()
@@ -42,8 +42,18 @@ export class FiscalYearsController {
         description: 'Récupère l\'historique de tous les exercices fiscaux (ouverts et clôturés).',
     })
     @ApiOkResponse({ description: 'Historique récupéré.' })
-    findAll() {
-        return this.fiscalYearsService.findAll();
+    findAll(@Req() req) {
+        return this.fiscalYearsService.findAll(req.user.companyId);
+    }
+
+    @Get('active')
+    @ApiOperation({
+        summary: 'Exercice fiscal actif',
+        description: 'Récupère l\'exercice fiscal actuellement actif pour la société.',
+    })
+    @ApiOkResponse({ description: 'Exercice actif récupéré.' })
+    findActive(@Req() req) {
+        return this.fiscalYearsService.findActive(req.user.companyId);
     }
 
     @Get(':id')
@@ -54,8 +64,8 @@ export class FiscalYearsController {
     @ApiParam({ name: 'id', example: 1 })
     @ApiOkResponse({ description: 'Exercice trouvé.' })
     @ApiNotFoundResponse({ description: 'Exercice introuvable.' })
-    findOne(@Param('id', ParseIntPipe) id: number) {
-        return this.fiscalYearsService.findOne(id);
+    findOne(@Param('id', ParseIntPipe) id: number, @Req() req) {
+        return this.fiscalYearsService.findOne(id, req.user.companyId);
     }
 
     @Patch(':id')
@@ -67,8 +77,30 @@ export class FiscalYearsController {
     @ApiBody({ type: UpdateFiscalYearDto })
     @ApiOkResponse({ description: 'Exercice mis à jour.' })
     @ApiBadRequestResponse({ description: 'Impossible de modifier un exercice clôturé.' })
-    update(@Param('id', ParseIntPipe) id: number, @Body() updateDto: UpdateFiscalYearDto) {
-        return this.fiscalYearsService.update(id, updateDto);
+    update(@Param('id', ParseIntPipe) id: number, @Body() updateDto: UpdateFiscalYearDto, @Req() req) {
+        return this.fiscalYearsService.update(id, updateDto, req.user.companyId);
+    }
+
+    @Patch(':id/activate')
+    @ApiOperation({
+        summary: 'Activer un exercice fiscal',
+        description: 'Active un exercice fiscal et désactive tous les autres pour cette société.',
+    })
+    @ApiParam({ name: 'id', example: 1 })
+    @ApiOkResponse({ description: 'Exercice activé avec succès.' })
+    activate(@Param('id', ParseIntPipe) id: number, @Req() req) {
+        return this.fiscalYearsService.activate(id, req.user.companyId);
+    }
+
+    @Patch(':id/deactivate')
+    @ApiOperation({
+        summary: 'Désactiver un exercice fiscal',
+        description: 'Désactive (clôture) un exercice fiscal.',
+    })
+    @ApiParam({ name: 'id', example: 1 })
+    @ApiOkResponse({ description: 'Exercice désactivé avec succès.' })
+    deactivate(@Param('id', ParseIntPipe) id: number, @Req() req) {
+        return this.fiscalYearsService.deactivate(id, req.user.companyId);
     }
 
     @Post(':id/close')
@@ -92,7 +124,7 @@ export class FiscalYearsController {
     @ApiParam({ name: 'id', example: 1 })
     @ApiOkResponse({ description: 'Exercice supprimé.' })
     @ApiBadRequestResponse({ description: 'Impossible de supprimer un exercice contenant des écritures.' })
-    remove(@Param('id', ParseIntPipe) id: number) {
-        return this.fiscalYearsService.remove(id);
+    remove(@Param('id', ParseIntPipe) id: number, @Req() req) {
+        return this.fiscalYearsService.remove(id, req.user.companyId);
     }
 }
