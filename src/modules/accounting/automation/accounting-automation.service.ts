@@ -106,9 +106,10 @@ export class AccountingAutomationService {
 
             this.logger.log(`Generated accounting entry for Invoice #${invoice.invoiceNumber}`);
 
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error(`Failed to generate invoice entry: ${error.message}`, error.stack);
-            // We don't throw here to avoid blocking the main transaction, but we should alert
+            // Rethrow error to allow the caller (InvoicesService) to handle it and rollback if necessary
+            throw new Error(`Erreur d'automatisation comptable : ${error.message}`);
         }
     }
 

@@ -915,6 +915,8 @@ export class ReportsService {
                 startDate: fiscalYear.startDate,
                 endDate: fiscalYear.endDate
             },
+            lines: balanceLines,
+            totals
         };
     }
 
@@ -962,5 +964,64 @@ export class ReportsService {
         }));
 
         return performance;
+    }
+
+    /**
+     * getNotesAnnexes - Returns structural and financial notes (OHADA)
+     */
+    async getNotesAnnexes(fiscalYearId: number) {
+        const fy = await this.prisma.fiscalYear.findUnique({
+            where: { id: fiscalYearId },
+            include: { company: { include: { branches: true } } }
+        });
+
+        if (!fy) throw new Error('Fiscal Year not found');
+
+        const company = fy.company;
+
+        return {
+            fiscalYear: {
+                code: fy.code,
+                startDate: fy.startDate,
+                endDate: fy.endDate
+            },
+            notes: [
+                {
+                    id: 1,
+                    title: "IDENTIFICATION DE L'ENTITÉ ET CARACTÉRISTIQUES DE L'ACTIVITÉ",
+                    content: {
+                        name: company.companyName,
+                        rccm: company.rccm,
+                        idNat: company.nationalId,
+                        nif: company.taxId,
+                        address: company.headquartersAddress,
+                        phone: company.phone,
+                        email: company.email,
+                        taxRegime: company.taxRegime,
+                        taxCenter: company.taxCenter,
+                        branches: company.branches.map(b => ({
+                            name: b.name,
+                            city: b.city,
+                            isMain: b.isMain
+                        }))
+                    }
+                },
+                {
+                    id: 2,
+                    title: "RÉFÉRENTIEL COMPTABLE ET ÉTAT DE CONFORMITÉ",
+                    content: "Les présents états financiers sont établis et présentés conformément aux dispositions de l'Acte Uniforme relatif au Droit Comptable et à l'Information Financière (AUDCIF) et au Système Comptable OHADA (SYSCOHADA)."
+                },
+                {
+                    id: 3,
+                    title: "MÉTHODES COMPTABLES ET RÈGLES D'ÉVALUATION",
+                    content: [
+                        "Dévise de tenue de comptabilité : " + company.currency,
+                        "Méthode d'évaluation des stocks : FIFO / PEPS (Premier Entré, Premier Sorti)",
+                        "Convention de coût historique respectée pour l'ensemble des postes du bilan.",
+                        "Traitement des opérations en devises : Conversion au cours du jour de l'opération."
+                    ]
+                }
+            ]
+        };
     }
 }

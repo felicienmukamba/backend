@@ -121,10 +121,10 @@ export class InvoicesService {
 
             const companyId = invoice.companyId;
 
-            return await this.prisma.$transaction(async (tx) => {
+            const updatedInvoice = await this.prisma.$transaction(async (tx) => {
                 // 1. Update status
                 console.log('Validating Invoice: Updating Status...');
-                const updatedInvoice = await tx.invoice.update({
+                const updated = await tx.invoice.update({
                     where: { id: BigInt(id) },
                     data: { status: 'VALIDATED' }
                 });
@@ -166,10 +166,25 @@ export class InvoicesService {
                 if (userId) await this.auditTrailService.logValidate('Invoice', invoice.id, userId, companyId);
 
                 console.log('Validating Invoice: Done.');
-                return updatedInvoice;
+                return updated;
             });
+
+            // 5. Submit to DGI (MCF)
+            // This is done outside the main transaction to avoid long timeouts/locks
+            // but after local status is 'VALIDATED'
+            try {
+                await this.dgiService.processInvoice(invoice.id);
+            } catch (dgiError) {
+                this.logger.error(`[InvoicesService] DGI Processing failed for invoice ${id}: ${dgiError.message}`);
+                // We don't throw here to avoid rolling back the local validation, 
+                // but the user might need to retry DGI submission later if it failed.
+                // However, for strict DRC law compliance, some might want it atomic.
+                // Given the current architecture, we keep it separate to avoid deadlocks.
+            }
+
+            return await this.findOne(id);
         } catch (error: any) {
-            this.logger.error(`[InvoicesService] Validate failed: ${error.message}`, error.stack);
+            this.logger.error(`[InvoicesService] Validate failed for invoice ${id}: ${error.message}`, error.stack);
             if (error.response && error.status) {
                 throw error;
             }

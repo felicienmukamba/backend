@@ -216,4 +216,15 @@ export class ReportsController {
     getSixColumnBalance(@Param('fiscalYearId', ParseIntPipe) fiscalYearId: number) {
         return this.reportsService.getSixColumnBalance(fiscalYearId);
     }
+
+    @Get('notes-annexes/:fiscalYearId')
+    @ApiOperation({
+        summary: 'Notes Annexes (OHADA)',
+        description: 'Génère les notes structurelles et explicatives (Note 1, 2, 3)'
+    })
+    @ApiParam({ name: 'fiscalYearId', description: "ID de l'exercice", type: Number })
+    @ApiResponse({ status: 200, description: 'Notes générées' })
+    getNotesAnnexes(@Param('fiscalYearId', ParseIntPipe) fiscalYearId: number) {
+        return this.reportsService.getNotesAnnexes(fiscalYearId);
+    }
 }
